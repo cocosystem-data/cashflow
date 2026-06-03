@@ -234,6 +234,203 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 /* ── TABLE FILE ICON ── */
 .file-icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 4px; opacity: 0.7; transition: opacity 0.12s; }
 .file-icon-btn:hover { opacity: 1; }
+
+/* ── FILTER TOGGLE (mobile) ── */
+.filter-toggle-bar { display: none; }
+.filter-panel-collapsed { display: none !important; }
+
+/* ── HAMBURGER BUTTON ── */
+.hamburger { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 36px; height: 36px; background: none; border: none; cursor: pointer; padding: 4px; border-radius: var(--r); flex-shrink: 0; }
+.hamburger span { display: block; height: 2px; background: var(--text); border-radius: 2px; transition: all 0.2s; }
+.hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.open span:nth-child(2) { opacity: 0; }
+.hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ── SIDEBAR OVERLAY ── */
+.sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(10,25,50,0.45); z-index: 100; }
+.sidebar-backdrop.show { display: block; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  /* Layout */
+  .layout { flex-direction: column; }
+
+  /* Sidebar: hidden off-screen on mobile */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 260px;
+    z-index: 150;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.12);
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Main fills full width */
+  .main { width: 100%; min-height: 100vh; }
+
+  /* Topbar: show hamburger */
+  .hamburger { display: flex; }
+  .topbar { padding: 11px 16px; gap: 8px; }
+  .topbar h2 { font-size: 14px; flex: 1; }
+  .btn-actions { gap: 6px; }
+  .btn-actions .btn { padding: 6px 10px; font-size: 12px; }
+
+  /* Content padding */
+  .content { padding: 16px; }
+
+  /* Metrics: 2 columns */
+  .metrics { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+  .metric-value { font-size: 18px; }
+
+  /* Bank grid: 1 column */
+  .bank-grid { grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
+
+  /* Section cards */
+  .section-head { padding: 12px 14px; }
+
+  /* Table → card view */
+  .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table thead { display: none; }
+  .table tbody tr {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    margin-bottom: 10px;
+    background: var(--surface);
+    padding: 10px 14px;
+  }
+  .table tbody tr:hover td { background: transparent; }
+  .table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .table tbody td:last-child { border-bottom: none; }
+  .table tbody td::before {
+    content: attr(data-label);
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+  /* Hide empty edit/action column label */
+  .table tbody td:last-child::before { content: ''; }
+
+  /* Filter toggle bar (mobile) */
+  .filter-toggle-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .filter-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 7px 13px;
+    font-size: 13px;
+    font-family: var(--font);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .filter-toggle-btn.active {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    color: var(--accent-text);
+  }
+  .filter-toggle-arrow {
+    font-size: 10px;
+    color: var(--text3);
+    transition: transform 0.2s;
+    margin-left: 2px;
+  }
+  .filter-toggle-arrow.open { transform: rotate(180deg); }
+  .filter-active-badge {
+    background: var(--accent);
+    color: white;
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
+  .filter-active-badge.hidden { display: none; }
+
+  /* Filter panel: collapsed by default on mobile */
+  #filter-panel {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    animation: slideDown 0.18s ease;
+  }
+  #filter-panel.open { display: flex; }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Filter bar items */
+  .filter-input, .filter-select { min-width: unset; width: 100%; }
+  .filter-group { width: 100%; }
+  .filter-date-range { flex-direction: row; }
+  .filter-date-range input { min-width: unset; flex: 1; width: auto; }
+  .filter-count { margin-left: 0; width: 100%; }
+
+  /* section-headのtotal-countは非表示（mobileはトグルバーに表示） */
+  #total-count { display: none; }
+
+  /* Form */
+  .form-grid { grid-template-columns: 1fr; gap: 10px; }
+  .form-actions { flex-direction: column-reverse; }
+  .form-actions .btn { width: 100%; justify-content: center; }
+
+  /* Chart bars */
+  .chart-vals { width: 100px; font-size: 10px; }
+
+  /* Alert items */
+  .alert-item { flex-direction: column; align-items: flex-start; gap: 6px; }
+
+  /* Modal */
+  .modal { width: calc(100% - 32px); padding: 22px 18px; }
+  .edit-modal { max-width: calc(100% - 0px); max-height: 95vh; }
+  .edit-modal-body { padding: 16px; }
+  .edit-modal-head, .edit-modal-footer { padding: 12px 16px; }
+  .edit-modal-footer { flex-direction: column-reverse; }
+  .edit-modal-footer .btn { width: 100%; justify-content: center; }
+
+  /* PDF drop zone */
+  .pdf-drop-zone { padding: 24px 16px; }
+
+  /* Toast */
+  .toast { left: 16px; right: 16px; bottom: 16px; text-align: center; }
+
+  /* File modal */
+  .file-modal { width: 100vw; max-width: 100vw; border-radius: 0; max-height: 100vh; }
+}
+
+@media (max-width: 480px) {
+  /* Metrics: 1 column on very small screens */
+  .metrics { grid-template-columns: 1fr; }
+  .topbar h2 { font-size: 13px; }
+}
 </style>
 </head>
 <body>
@@ -252,9 +449,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
   </div>
 </div>
 
+<!-- モバイル用サイドバー背景 -->
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
 <div class="layout">
   <!-- サイドバー -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <h1>セイル収支管理</h1>
       <div class="period">R7.5.1 〜 R8.4.30</div>
@@ -282,6 +482,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 
   <div class="main">
     <div class="topbar">
+      <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()" aria-label="メニュー">
+        <span></span><span></span><span></span>
+      </button>
       <h2 id="page-title">ダッシュボード</h2>
       <div class="btn-actions">
         <button class="btn btn-sm" id="export-btn" onclick="exportExcel()" style="display:none">↓ Excel出力</button>
@@ -319,8 +522,18 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
             <span class="section-title">全取引</span>
             <span id="total-count" style="font-size:12px;color:var(--text3);font-family:var(--mono)"></span>
           </div>
+          <!-- フィルターバー：モバイル用トグルヘッダー -->
+          <div class="filter-toggle-bar" id="filter-toggle-bar">
+            <button class="filter-toggle-btn" id="filter-toggle-btn" onclick="toggleFilterPanel()">
+              <span>🔍</span>
+              <span>絞り込む</span>
+              <span class="filter-active-badge hidden" id="filter-active-badge"></span>
+              <span class="filter-toggle-arrow" id="filter-toggle-arrow">▼</span>
+            </button>
+            <span id="total-count-mobile" style="font-size:11px;color:var(--text3);font-family:var(--mono)"></span>
+          </div>
           <!-- フィルターバー -->
-          <div class="filter-bar">
+          <div class="filter-bar" id="filter-panel">
             <div class="filter-group">
               <span class="filter-label">取引先名</span>
               <input class="filter-input" type="text" id="f-search-company" placeholder="取引先で検索…" oninput="renderList()">
@@ -355,6 +568,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
             </div>
             <button class="btn btn-sm" onclick="clearFilters()" style="align-self:flex-end">クリア</button>
           </div>
+          <div class="table-responsive">
           <table class="table">
             <thead>
               <tr>
@@ -364,6 +578,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
             </thead>
             <tbody id="transaction-list"></tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -677,8 +892,58 @@ function showScreen(id) {
   if (id === 'list') renderList();
 }
 document.querySelectorAll('.nav-item').forEach(item => {
-  item.addEventListener('click', () => showScreen(item.dataset.screen));
+  item.addEventListener('click', () => {
+    showScreen(item.dataset.screen);
+    closeSidebar();
+  });
 });
+
+// ── MOBILE FILTER PANEL ──
+function toggleFilterPanel() {
+  const panel = document.getElementById('filter-panel');
+  const btn = document.getElementById('filter-toggle-btn');
+  const arrow = document.getElementById('filter-toggle-arrow');
+  const isOpen = panel.classList.toggle('open');
+  btn.classList.toggle('active', isOpen);
+  arrow.classList.toggle('open', isOpen);
+}
+
+function updateFilterBadge() {
+  const company = (document.getElementById('f-search-company')||{}).value || '';
+  const dateFrom = (document.getElementById('f-date-from')||{}).value || '';
+  const dateTo = (document.getElementById('f-date-to')||{}).value || '';
+  const status = (document.getElementById('f-filter-status')||{}).value || '';
+  const type = (document.getElementById('f-filter-type')||{}).value || '';
+  const count = [company, dateFrom, dateTo, status, type].filter(Boolean).length;
+  const badge = document.getElementById('filter-active-badge');
+  const btn = document.getElementById('filter-toggle-btn');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.classList.remove('hidden');
+    btn && btn.classList.add('active');
+  } else {
+    badge.classList.add('hidden');
+    if (!document.getElementById('filter-panel').classList.contains('open')) {
+      btn && btn.classList.remove('active');
+    }
+  }
+}
+
+// ── MOBILE SIDEBAR ──
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('hamburger-btn');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  const isOpen = sidebar.classList.toggle('open');
+  btn.classList.toggle('open', isOpen);
+  backdrop.classList.toggle('show', isOpen);
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('hamburger-btn').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('show');
+}
 
 function fmtYen(n) {
   if (!n || isNaN(n) || n === '') return '—';
@@ -776,7 +1041,11 @@ function renderList() {
   // 新しい取引が下（日付昇順）
   filtered.sort((a,b) => (a.date||'').localeCompare(b.date||''));
 
-  document.getElementById('total-count').textContent = filtered.length + '件' + (filtered.length < transactions.length ? ` / 全${transactions.length}件` : '');
+  const countText = filtered.length + '件' + (filtered.length < transactions.length ? ` / 全\${transactions.length}件` : '');
+  document.getElementById('total-count').textContent = countText;
+  const mobileCount = document.getElementById('total-count-mobile');
+  if (mobileCount) mobileCount.textContent = countText;
+  updateFilterBadge();
   document.getElementById('transaction-list').innerHTML = filtered.length === 0
     ? `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text3)">${transactions.length === 0 ? '取引データがありません' : '該当する取引はありません'}</td></tr>`
     : filtered.map(t => {
@@ -787,15 +1056,15 @@ function renderList() {
           ? t.files.map((f,fi) => `<button class="file-icon-btn" title="${f.name}" onclick="openFileViewer(${idx},${fi})">📎</button>`).join('')
           : '<span style="color:var(--text3);font-size:12px">—</span>';
         return `<tr>
-          <td style="font-family:var(--mono);font-size:12px;color:var(--text2);white-space:nowrap">${t.date||'—'}</td>
-          <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.company||'—'}</td>
-          <td class="${t.expense?'amount-out':'amount-none'}">${t.expense?fmtYen(t.expense):'—'}</td>
-          <td class="${t.income?'amount-in':'amount-none'}">${t.income?fmtYen(t.income):'—'}</td>
-          <td>${t.bank?`<span class="badge badge-blue">${t.bank}</span>`:'<span style="color:var(--text3);font-size:12px">—</span>'}</td>
-          <td><span class="badge ${sc}">${t.status||'—'}</span></td>
-          <td style="font-size:12px;color:var(--text3)">${t.type||'—'}</td>
-          <td style="font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.note||'—'}</td>
-          <td style="white-space:nowrap">${fileIcon}</td>
+          <td data-label="日付" style="font-family:var(--mono);font-size:12px;color:var(--text2);white-space:nowrap">${t.date||'—'}</td>
+          <td data-label="取引先" style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.company||'—'}</td>
+          <td data-label="出金額" class="${t.expense?'amount-out':'amount-none'}">${t.expense?fmtYen(t.expense):'—'}</td>
+          <td data-label="入金額" class="${t.income?'amount-in':'amount-none'}">${t.income?fmtYen(t.income):'—'}</td>
+          <td data-label="口座">${t.bank?`<span class="badge badge-blue">${t.bank}</span>`:'<span style="color:var(--text3);font-size:12px">—</span>'}</td>
+          <td data-label="ステータス"><span class="badge ${sc}">${t.status||'—'}</span></td>
+          <td data-label="種別" style="font-size:12px;color:var(--text3)">${t.type||'—'}</td>
+          <td data-label="備考" style="font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.note||'—'}</td>
+          <td data-label="添付" style="white-space:nowrap">${fileIcon}</td>
           <td style="white-space:nowrap"><button class="link-btn" style="color:var(--accent);margin-right:8px" onclick="openEditModal(${idx})">修正</button><button class="link-btn" style="color:var(--danger)" onclick="deleteEntry(${idx})">削除</button></td>
         </tr>`;
       }).join('');
