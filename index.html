@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>セイル収支管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #F2F5F9;
+  --surface: #FFFFFF;
+  --border: #D8E2EF;
+  --border-strong: #A8BDD6;
+  --text: #0F1E2E;
+  --text2: #4A6280;
+  --text3: #8DA4BE;
+  --accent: #1A56A8;
+  --accent-hover: #1244880;
+  --accent-light: #E8F0FB;
+  --accent-text: #0E3570;
+  --danger: #8B2E1A;
+  --danger-light: #FBF0ED;
+  --warning-bg: #FBF6EA;
+  --warning-text: #7A5A1A;
+  --income: #0E4D2A;
+  --expense: #7A1A0A;
+  --font: 'Noto Sans JP', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --r: 6px;
+  --rlg: 10px;
+}
+
+body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+
+/* ── OVERLAY ── */
+.overlay { position: fixed; inset: 0; background: rgba(10,25,50,0.55); z-index: 200; display: flex; align-items: center; justify-content: center; }
+.overlay.hidden { display: none; }
+.modal { background: var(--surface); border-radius: var(--rlg); padding: 32px; width: 420px; border: 1px solid var(--border); }
+.modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+.modal p { font-size: 13px; color: var(--text2); margin-bottom: 20px; line-height: 1.7; }
+.modal-input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r); font-size: 13px; font-family: var(--mono); color: var(--text); background: var(--bg); outline: none; margin-bottom: 12px; }
+.modal-input:focus { border-color: var(--accent); background: var(--surface); }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.modal-note { font-size: 11px; color: var(--text3); margin-top: 8px; line-height: 1.6; }
+
+/* ── LAYOUT ── */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar { width: 228px; background: var(--surface); border-right: 1px solid var(--border); padding: 0; flex-shrink: 0; display: flex; flex-direction: column; }
+
+.sidebar-logo { padding: 20px 20px 18px; border-bottom: 1px solid var(--border); }
+.sidebar-logo h1 { font-size: 14px; font-weight: 500; color: var(--text); letter-spacing: 0.01em; }
+.sidebar-logo .period { font-size: 11px; color: var(--text3); font-family: var(--mono); margin-top: 3px; }
+.sidebar-logo .term { font-size: 11px; color: var(--accent); background: var(--accent-light); padding: 2px 7px; border-radius: 10px; display: inline-block; margin-top: 6px; }
+
+.nav { padding: 12px 0; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; cursor: pointer; color: var(--text2); font-size: 13px; border-left: 2px solid transparent; transition: all 0.12s; }
+.nav-item:hover { color: var(--text); background: var(--bg); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-light); font-weight: 500; }
+.nav-icon { font-size: 15px; width: 18px; color: inherit; }
+
+.nav-section { padding: 16px 20px 6px; font-size: 10px; color: var(--text3); letter-spacing: 0.1em; font-family: var(--mono); }
+
+.sidebar-bottom { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--border); }
+.api-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text3); cursor: pointer; }
+.api-dot { width: 7px; height: 7px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+.api-dot.ok { background: #2E9E5A; }
+
+.main { flex: 1; overflow: auto; display: flex; flex-direction: column; }
+
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.topbar h2 { font-size: 15px; font-weight: 500; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 15px; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; font-family: var(--font); cursor: pointer; transition: all 0.12s; white-space: nowrap; }
+.btn:hover { background: var(--bg); border-color: var(--border-strong); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-text); border-color: var(--accent-text); }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn-actions { display: flex; gap: 8px; }
+
+.content { padding: 28px 32px; flex: 1; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── METRICS ── */
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--rlg); padding: 18px 20px; }
+.metric-label { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; margin-bottom: 8px; font-family: var(--mono); text-transform: uppercase; }
+.metric-value { font-size: 22px; font-weight: 300; font-family: var(--mono); letter-spacing: -0.02em; }
+.metric-value.income { color: var(--income); }
+.metric-value.expense { color: var(--expense); }
+.metric-value.balance-pos { color: var(--accent); }
+.metric-value.balance-neg { color: var(--expense); }
+.metric-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* ── BANK CARDS ── */
+.bank-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+.bank-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--rlg); padding: 16px 20px; }
+.bank-name { font-size: 11px; color: var(--text3); font-family: var(--mono); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.bank-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.bank-in { font-size: 13px; color: var(--income); font-family: var(--mono); }
+.bank-out { font-size: 13px; color: var(--expense); font-family: var(--mono); }
+.bank-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.bank-row-label { font-size: 11px; color: var(--text2); }
+
+/* ── SECTION CARD ── */
+.section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--rlg); margin-bottom: 20px; overflow: hidden; }
+.section-head { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.section-title { font-size: 13px; font-weight: 500; }
+
+/* ── TABLE ── */
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { padding: 9px 14px; text-align: left; font-size: 10px; font-weight: 400; color: var(--text3); letter-spacing: 0.08em; font-family: var(--mono); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.table td { padding: 11px 14px; border-bottom: 1px solid var(--border); }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: var(--bg); }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-family: var(--mono); white-space: nowrap; }
+.badge-ok { background: #EAF6F0; color: #0E4D2A; }
+.badge-ng { background: var(--danger-light); color: var(--danger); }
+.badge-wait { background: var(--warning-bg); color: var(--warning-text); }
+.badge-blue { background: var(--accent-light); color: var(--accent-text); }
+
+.amount-in { color: var(--income); font-family: var(--mono); }
+.amount-out { color: var(--expense); font-family: var(--mono); }
+.amount-none { color: var(--text3); font-family: var(--mono); }
+
+/* ── CHART ── */
+.chart-bars { padding: 18px 20px; }
+.chart-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.chart-label { font-size: 11px; color: var(--text2); width: 36px; text-align: right; font-family: var(--mono); }
+.chart-col { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.chart-track { height: 7px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.chart-fill-in { height: 100%; border-radius: 4px; background: #1A56A8; }
+.chart-fill-out { height: 100%; border-radius: 4px; background: #C04830; }
+.chart-vals { width: 120px; font-size: 11px; font-family: var(--mono); }
+.chart-val-in { color: var(--accent); }
+.chart-val-out { color: var(--expense); }
+
+/* ── PDF DROP ── */
+.pdf-drop-zone { border: 1.5px dashed var(--border-strong); border-radius: var(--rlg); padding: 36px 40px; text-align: center; cursor: pointer; transition: all 0.18s; background: var(--bg); margin-bottom: 20px; }
+.pdf-drop-zone:hover, .pdf-drop-zone.dragover { border-color: var(--accent); background: var(--accent-light); }
+.drop-icon { font-size: 28px; margin-bottom: 10px; color: var(--text3); }
+.drop-title { font-size: 14px; font-weight: 500; margin-bottom: 5px; color: var(--text); }
+.drop-sub { font-size: 12px; color: var(--text3); margin-bottom: 14px; }
+
+.analyzing { background: var(--accent-light); border: 1px solid #A8C4E8; border-radius: var(--rlg); padding: 18px 22px; margin-bottom: 20px; display: none; align-items: center; gap: 14px; }
+.analyzing.show { display: flex; }
+.spinner { width: 18px; height: 18px; border: 2px solid #A8C4E8; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.autofill-banner { background: #EAF6F0; border: 1px solid #9ED4B8; border-radius: var(--r); padding: 10px 14px; font-size: 12px; color: #0E4D2A; margin-bottom: 18px; display: none; align-items: center; gap: 8px; }
+.autofill-banner.show { display: flex; }
+
+.pdf-preview { display: none; align-items: center; gap: 10px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 18px; font-size: 13px; }
+.pdf-preview.show { display: flex; }
+
+/* ── FORM ── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-full { grid-column: 1 / -1; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-label { font-size: 12px; color: var(--text2); }
+.form-input { padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); font-size: 13px; font-family: var(--font); color: var(--text); transition: border-color 0.12s; outline: none; }
+.form-input:focus { border-color: var(--accent); }
+.form-input.autofilled { border-color: var(--accent); background: var(--accent-light); }
+.form-select { padding: 9px 32px 9px 11px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); font-size: 13px; font-family: var(--font); color: var(--text); cursor: pointer; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234A6280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+.form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+
+/* ── ALERT ── */
+.alert-list { padding: 0; }
+.alert-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.alert-item:last-child { border-bottom: none; }
+.empty-state { text-align: center; padding: 36px; color: var(--text3); font-size: 13px; }
+
+.link-btn { background: none; border: none; cursor: pointer; font-size: 12px; padding: 0; font-family: var(--font); text-decoration: underline; }
+#file-input { display: none; }
+
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: white; padding: 11px 18px; border-radius: var(--rlg); font-size: 13px; opacity: 0; transform: translateY(6px); transition: all 0.25s; z-index: 300; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+.error-detail { background: var(--danger-light); border: 1px solid #E8B8A8; border-radius: var(--r); padding: 10px 14px; font-size: 12px; color: var(--danger); margin-bottom: 16px; display: none; }
+.error-detail.show { display: block; }
+
+/* ── FILTER BAR ── */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--bg); }
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.filter-label { font-size: 10px; color: var(--text3); letter-spacing: 0.08em; font-family: var(--mono); }
+.filter-input { padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); font-size: 12px; font-family: var(--font); color: var(--text); outline: none; transition: border-color 0.12s; min-width: 140px; }
+.filter-input:focus { border-color: var(--accent); }
+.filter-select { padding: 7px 28px 7px 10px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); font-size: 12px; font-family: var(--font); color: var(--text); cursor: pointer; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%234A6280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+.filter-date-range { display: flex; align-items: center; gap: 5px; }
+.filter-date-range span { font-size: 11px; color: var(--text3); }
+.filter-active { border-color: var(--accent) !important; background: var(--accent-light) !important; }
+.filter-count { font-size: 11px; color: var(--text3); font-family: var(--mono); white-space: nowrap; margin-left: auto; align-self: center; }
+
+/* ── FILE ATTACHMENT ── */
+.file-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.file-chip { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r); padding: 6px 10px; font-size: 12px; }
+.file-chip-icon { font-size: 14px; flex-shrink: 0; }
+.file-chip-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.file-chip-size { color: var(--text3); font-family: var(--mono); flex-shrink: 0; }
+.file-chip-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.file-chip-btn { background: none; border: none; cursor: pointer; font-size: 11px; padding: 2px 6px; border-radius: 4px; color: var(--accent); font-family: var(--font); text-decoration: underline; }
+.file-chip-btn.del { color: var(--danger); }
+.file-attach-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1.5px dashed var(--border-strong); border-radius: var(--r); background: var(--bg); color: var(--text2); font-size: 12px; font-family: var(--font); cursor: pointer; transition: all 0.12s; }
+.file-attach-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+#file-attach-input { display: none; }
+
+
+/* ── EDIT MODAL ── */
+.edit-modal-overlay { position: fixed; inset: 0; background: rgba(10,25,50,0.6); z-index: 250; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.edit-modal-overlay.hidden { display: none; }
+.edit-modal { background: var(--surface); border-radius: var(--rlg); width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border); display: flex; flex-direction: column; }
+.edit-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.edit-modal-title { font-size: 15px; font-weight: 500; }
+.edit-modal-body { padding: 22px 24px; }
+.edit-modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; flex-shrink: 0; position: sticky; bottom: 0; background: var(--surface); }
+/* ── FILE VIEWER MODAL ── */
+.file-modal-overlay { position: fixed; inset: 0; background: rgba(10,25,50,0.75); z-index: 300; display: flex; align-items: center; justify-content: center; }
+.file-modal-overlay.hidden { display: none; }
+.file-modal { background: var(--surface); border-radius: var(--rlg); width: 90vw; max-width: 900px; max-height: 90vh; display: flex; flex-direction: column; border: 1px solid var(--border); overflow: hidden; }
+.file-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.file-modal-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-modal-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.file-modal-body { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; background: #1a1a2e; min-height: 300px; }
+.file-modal-body iframe { width: 100%; height: 70vh; border: none; }
+.file-modal-body img { max-width: 100%; max-height: 70vh; object-fit: contain; display: block; }
+
+/* ── TABLE FILE ICON ── */
+.file-icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 0 4px; opacity: 0.7; transition: opacity 0.12s; }
+.file-icon-btn:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- APIキー設定モーダル -->
+<div class="overlay" id="api-overlay">
+  <div class="modal">
+    <h3>Anthropic APIキーの設定</h3>
+    <p>PDFの自動解析にAnthropicのAPIキーが必要です。<br>キーはこのブラウザにのみ保存され、外部には送信されません。</p>
+    <input class="modal-input" type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn" onclick="skipApiKey()">後で設定する</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">保存して続ける</button>
+    </div>
+    <p class="modal-note">※ APIキーは <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a> で取得できます。<br>「後で設定する」を選ぶと手動入力モードで使用できます。</p>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>セイル収支管理</h1>
+      <div class="period">R7.5.1 〜 R8.4.30</div>
+      <div class="term">第8期</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">MENU</div>
+      <div class="nav-item active" data-screen="dashboard">
+        <span class="nav-icon">◈</span> ダッシュボード
+      </div>
+      <div class="nav-item" data-screen="list">
+        <span class="nav-icon">≡</span> 取引一覧
+      </div>
+      <div class="nav-item" data-screen="entry">
+        <span class="nav-icon">＋</span> 新規登録
+      </div>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="api-status" id="api-status-btn" onclick="openApiModal()">
+        <div class="api-dot" id="api-dot"></div>
+        <span id="api-status-text">APIキー未設定</span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h2 id="page-title">ダッシュボード</h2>
+      <div class="btn-actions">
+        <button class="btn btn-sm" id="export-btn" onclick="exportExcel()" style="display:none">↓ Excel出力</button>
+        <button class="btn btn-primary btn-sm" onclick="showScreen('entry')">＋ 新規登録</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ダッシュボード -->
+      <div class="screen active" id="screen-dashboard">
+        <div class="metrics" id="metrics-area"></div>
+
+        <div style="margin-bottom:8px; font-size:12px; color:var(--text2); font-weight:500; letter-spacing:0.04em;">銀行口座別</div>
+        <div class="bank-grid" id="bank-grid"></div>
+
+        <div class="section-card">
+          <div class="section-head"><span class="section-title">月別推移</span></div>
+          <div class="chart-bars" id="chart-area"></div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">未回収・未払い</span>
+            <span class="badge badge-ng" id="uncollected-count">0件</span>
+          </div>
+          <div class="alert-list" id="alert-list"></div>
+        </div>
+      </div>
+
+      <!-- 取引一覧 -->
+      <div class="screen" id="screen-list">
+        <div class="section-card">
+          <div class="section-head">
+            <span class="section-title">全取引</span>
+            <span id="total-count" style="font-size:12px;color:var(--text3);font-family:var(--mono)"></span>
+          </div>
+          <!-- フィルターバー -->
+          <div class="filter-bar">
+            <div class="filter-group">
+              <span class="filter-label">取引先名</span>
+              <input class="filter-input" type="text" id="f-search-company" placeholder="取引先で検索…" oninput="renderList()">
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">期間</span>
+              <div class="filter-date-range">
+                <input class="filter-input" type="date" id="f-date-from" style="min-width:130px" onchange="renderList()">
+                <span>〜</span>
+                <input class="filter-input" type="date" id="f-date-to" style="min-width:130px" onchange="renderList()">
+              </div>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">ステータス</span>
+              <select class="filter-select" id="f-filter-status" onchange="renderList()">
+                <option value="">すべて</option>
+                <option value="回収済み">回収済み</option>
+                <option value="未回収">未回収</option>
+                <option value="支払済み">支払済み</option>
+                <option value="未払い">未払い</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">種別</span>
+              <select class="filter-select" id="f-filter-type" onchange="renderList()">
+                <option value="">すべて</option>
+                <option value="受領請求書">受領請求書</option>
+                <option value="発行請求書">発行請求書</option>
+                <option value="契約書">契約書</option>
+                <option value="その他">その他</option>
+              </select>
+            </div>
+            <button class="btn btn-sm" onclick="clearFilters()" style="align-self:flex-end">クリア</button>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>日付</th><th>取引先</th><th>出金額</th><th>入金額</th>
+                <th>口座</th><th>ステータス</th><th>種別</th><th>備考</th><th>添付</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="transaction-list"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 新規登録 -->
+      <div class="screen" id="screen-entry">
+        <div class="pdf-drop-zone" id="drop-zone">
+          <div class="drop-icon">⬆</div>
+          <div class="drop-title">請求書PDFをドロップ</div>
+          <div class="drop-sub">Claudeが取引先・金額・日付・内容を自動入力します</div>
+          <button class="btn btn-sm" onclick="document.getElementById('file-input').click(); event.stopPropagation();">ファイルを選択</button>
+          <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg">
+        </div>
+
+        <div class="analyzing" id="analyzing-indicator">
+          <div class="spinner"></div>
+          <div>
+            <div style="font-size:13px;font-weight:500;color:var(--accent-text)">PDFを解析中…</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">取引先・金額・日付・内容を読み取っています</div>
+          </div>
+        </div>
+
+        <div class="error-detail" id="error-detail"></div>
+
+        <div class="pdf-preview" id="pdf-preview">
+          <span style="color:#C04830;font-size:18px;">⬜</span>
+          <span id="pdf-filename" style="font-weight:500;"></span>
+          <span style="color:var(--text3);font-size:12px;" id="pdf-filesize"></span>
+          <button class="link-btn" style="color:var(--danger);margin-left:auto;" onclick="clearPdf()">削除</button>
+        </div>
+
+        <div class="autofill-banner" id="autofill-banner">
+          <span>✓</span><span>PDFから情報を自動入力しました。内容を確認して登録してください。</span>
+        </div>
+
+        <div class="section-card">
+          <div class="section-head"><span class="section-title">取引情報</span></div>
+          <div style="padding:22px 24px;">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">日付</label>
+                <input class="form-input" type="date" id="f-date">
+              </div>
+              <div class="form-group">
+                <label class="form-label">取引先</label>
+                <input class="form-input" type="text" id="f-company" placeholder="例：株式会社リアル">
+              </div>
+              <div class="form-group">
+                <label class="form-label">出金額（円）</label>
+                <input class="form-input" type="text" id="f-expense" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">入金額（円）</label>
+                <input class="form-input" type="text" id="f-income" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label">口座・支払手段</label>
+                <select class="form-select" id="f-bank">
+                  <option value="">— 選択 —</option>
+                  <option value="住信SBI">住信SBI銀行</option>
+                  <option value="大阪信用銀行">大阪信用銀行</option>
+                  <option value="カード">カード</option>
+                  <option value="現金">現金</option>
+                  <option value="その他">その他</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">ステータス</label>
+                <select class="form-select" id="f-status">
+                  <option value="回収済み">回収済み</option>
+                  <option value="未回収">未回収</option>
+                  <option value="支払済み">支払済み</option>
+                  <option value="未払い">未払い</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">種別</label>
+                <select class="form-select" id="f-type">
+                  <option value="受領請求書">受領請求書</option>
+                  <option value="発行請求書">発行請求書</option>
+                  <option value="契約書">契約書</option>
+                  <option value="その他">その他</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">備考</label>
+                <input class="form-input" type="text" id="f-note" placeholder="メモ（任意）">
+              </div>
+            </div>
+            <div class="form-group form-full" style="margin-top:8px">
+              <label class="form-label">添付ファイル（PDF・画像・その他）</label>
+              <button type="button" class="file-attach-btn" onclick="document.getElementById('file-attach-input').click()">
+                <span>📎</span> ファイルを添付する
+              </button>
+              <input type="file" id="file-attach-input" multiple accept=".pdf,.png,.jpg,.jpeg,.xlsx,.csv,.txt,.docx">
+              <div class="file-list" id="attach-file-list"></div>
+            </div>
+            <div class="form-actions">
+              <button class="btn" onclick="clearForm()">クリア</button>
+              <button class="btn btn-primary" onclick="saveEntry()">登録する</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- 取引編集モーダル -->
+<div class="edit-modal-overlay hidden" id="edit-modal-overlay" onclick="closeEditModal(event)">
+  <div class="edit-modal">
+    <div class="edit-modal-head">
+      <span class="edit-modal-title">取引を編集</span>
+      <button class="btn btn-sm" onclick="document.getElementById('edit-modal-overlay').classList.add('hidden')">✕</button>
+    </div>
+    <div class="edit-modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">日付</label>
+          <input class="form-input" type="date" id="e-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">取引先</label>
+          <input class="form-input" type="text" id="e-company" placeholder="例：株式会社リアル">
+        </div>
+        <div class="form-group">
+          <label class="form-label">出金額（円）</label>
+          <input class="form-input" type="text" id="e-expense" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">入金額（円）</label>
+          <input class="form-input" type="text" id="e-income" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">口座・支払手段</label>
+          <select class="form-select" id="e-bank">
+            <option value="">— 選択 —</option>
+            <option value="住信SBI">住信SBI銀行</option>
+            <option value="大阪信用銀行">大阪信用銀行</option>
+            <option value="カード">カード</option>
+            <option value="現金">現金</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ステータス</label>
+          <select class="form-select" id="e-status">
+            <option value="回収済み">回収済み</option>
+            <option value="未回収">未回収</option>
+            <option value="支払済み">支払済み</option>
+            <option value="未払い">未払い</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">種別</label>
+          <select class="form-select" id="e-type">
+            <option value="受領請求書">受領請求書</option>
+            <option value="発行請求書">発行請求書</option>
+            <option value="契約書">契約書</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">備考</label>
+          <input class="form-input" type="text" id="e-note" placeholder="メモ（任意）">
+        </div>
+      </div>
+      <div class="form-group form-full" style="margin-top:16px">
+        <label class="form-label">添付ファイル</label>
+        <button type="button" class="file-attach-btn" onclick="document.getElementById('edit-attach-input').click()">
+          <span>📎</span> ファイルを追加
+        </button>
+        <input type="file" id="edit-attach-input" multiple accept=".pdf,.png,.jpg,.jpeg,.xlsx,.csv,.txt,.docx">
+        <div class="file-list" id="edit-file-list" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="edit-modal-footer">
+      <button class="btn" onclick="document.getElementById('edit-modal-overlay').classList.add('hidden')">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveEditEntry()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ファイルビューアモーダル -->
+<div class="file-modal-overlay hidden" id="file-viewer-overlay" onclick="closeFileViewer(event)">
+  <div class="file-modal">
+    <div class="file-modal-head">
+      <span class="file-modal-title" id="file-viewer-name">ファイル名</span>
+      <div class="file-modal-actions">
+        <button class="btn btn-sm" onclick="downloadViewingFile()">↓ ダウンロード</button>
+        <button class="btn btn-sm" onclick="document.getElementById('file-viewer-overlay').classList.add('hidden')">✕ 閉じる</button>
+      </div>
+    </div>
+    <div class="file-modal-body" id="file-viewer-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BANKS = ['住信SBI', '大阪信用銀行', 'カード'];
+const BANK_COLORS = { '住信SBI': '#1A56A8', '大阪信用銀行': '#0E7A56', 'カード': '#8B2E8B' };
+
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby0bQyA6H5DXHOjNR2Pha3keyEKnDW3thvzhXQ07MhQT1sgCuS11hX8Gi0o-sDTZ6r_Tw/exec';
+let transactions = [];
+let apiKey = '';
+let isSyncing = false;
+
+function setSyncStatus(msg, isError) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--danger)' : 'var(--text3)';
+}
+
+async function loadData() {
+  apiKey = localStorage.getItem('sail_apikey') || '';
+  updateApiStatus();
+  setSyncStatus('読み込み中…');
+  try {
+    const res = await fetch(GAS_URL + '?action=list');
+    const json = await res.json();
+    if (json.data) {
+      transactions = json.data;
+      setSyncStatus('最終同期: ' + new Date().toLocaleTimeString('ja-JP'));
+    } else {
+      throw new Error(json.error || '取得失敗');
+    }
+  } catch(e) {
+    setSyncStatus('⚠ オフライン（ローカルデータ表示中）', true);
+    try { transactions = JSON.parse(localStorage.getItem('sail_txns_v2') || '[]'); } catch(e2) { transactions = []; }
+  }
+  renderDashboard();
+  renderList();
+}
+
+async function save(entry, action) {
+  localStorage.setItem('sail_txns_v2', JSON.stringify(transactions));
+  setSyncStatus('保存中…');
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action, ...entry })
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    setSyncStatus('最終同期: ' + new Date().toLocaleTimeString('ja-JP'));
+    return json;
+  } catch(e) {
+    setSyncStatus('⚠ 同期失敗（ローカル保存済み）', true);
+    return null;
+  }
+}
+
+async function uploadFileToGas(file) {
+  setSyncStatus('ファイルアップロード中…');
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'uploadFile',
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        fileData: file.data,
+      })
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    setSyncStatus('最終同期: ' + new Date().toLocaleTimeString('ja-JP'));
+    // Return Drive-backed file reference (no base64 stored locally)
+    return { name: json.fileName, size: json.fileSize, type: json.fileType, fileId: json.fileId, driveUrl: `https://drive.google.com/file/d/${json.fileId}/view` };
+  } catch(e) {
+    setSyncStatus('⚠ アップロード失敗', true);
+    // fallback: keep base64
+    return file;
+  }
+}
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val) { showToast('APIキーを入力してください'); return; }
+  if (!val.startsWith('sk-ant-')) { showToast('正しいAPIキーを入力してください（sk-ant- で始まります）'); return; }
+  apiKey = val;
+  localStorage.setItem('sail_apikey', apiKey);
+  document.getElementById('api-overlay').classList.add('hidden');
+  updateApiStatus();
+  showToast('APIキーを保存しました');
+}
+function skipApiKey() { document.getElementById('api-overlay').classList.add('hidden'); }
+function openApiModal() {
+  document.getElementById('api-key-input').value = apiKey;
+  document.getElementById('api-overlay').classList.remove('hidden');
+}
+function updateApiStatus() {
+  const dot = document.getElementById('api-dot');
+  const txt = document.getElementById('api-status-text');
+  if (apiKey) { dot.classList.add('ok'); txt.textContent = 'API接続済み'; }
+  else { dot.classList.remove('ok'); txt.textContent = 'APIキー未設定'; }
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  document.querySelector(`[data-screen="${id}"]`).classList.add('active');
+  const titles = { dashboard: 'ダッシュボード', list: '取引一覧', entry: '新規登録' };
+  document.getElementById('page-title').textContent = titles[id];
+  document.getElementById('export-btn').style.display = id === 'list' ? 'inline-flex' : 'none';
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'list') renderList();
+}
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => showScreen(item.dataset.screen));
+});
+
+function fmtYen(n) {
+  if (!n || isNaN(n) || n === '') return '—';
+  return '¥' + Number(n).toLocaleString('ja-JP');
+}
+
+function renderDashboard() {
+  const totalIn = transactions.reduce((a, t) => a + (Number(t.income) || 0), 0);
+  const totalOut = transactions.reduce((a, t) => a + (Number(t.expense) || 0), 0);
+  const balance = totalIn - totalOut;
+  const uncollected = transactions.filter(t => t.status === '未回収' || t.status === '未払い');
+
+  document.getElementById('metrics-area').innerHTML = `
+    <div class="metric-card"><div class="metric-label">総入金</div><div class="metric-value income">${fmtYen(totalIn)}</div><div class="metric-sub">${transactions.filter(t=>t.income).length}件</div></div>
+    <div class="metric-card"><div class="metric-label">総出金</div><div class="metric-value expense">${fmtYen(totalOut)}</div><div class="metric-sub">${transactions.filter(t=>t.expense).length}件</div></div>
+    <div class="metric-card"><div class="metric-label">差引収支</div><div class="metric-value ${balance>=0?'balance-pos':'balance-neg'}">${fmtYen(Math.abs(balance))}</div><div class="metric-sub">${balance>=0?'黒字':'赤字'}</div></div>
+    <div class="metric-card"><div class="metric-label">要対応</div><div class="metric-value ${uncollected.length>0?'expense':'income'}">${uncollected.length}<span style="font-size:14px">件</span></div><div class="metric-sub">未回収・未払い</div></div>`;
+
+  const bankHTML = BANKS.map(bank => {
+    const bIn = transactions.filter(t => t.bank === bank && t.income).reduce((a, t) => a + (Number(t.income)||0), 0);
+    const bOut = transactions.filter(t => t.bank === bank && t.expense).reduce((a, t) => a + (Number(t.expense)||0), 0);
+    const color = BANK_COLORS[bank] || '#888';
+    return `<div class="bank-card">
+      <div class="bank-name"><div class="bank-dot" style="background:${color}"></div>${bank}</div>
+      <div class="bank-row"><span class="bank-row-label">入金</span><span class="bank-in">${fmtYen(bIn)}</span></div>
+      <div class="bank-row"><span class="bank-row-label">出金</span><span class="bank-out">${fmtYen(bOut)}</span></div>
+      <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:11px; font-family:var(--mono); color:${bIn-bOut>=0?'var(--income)':'var(--expense)'}">
+        収支 ${bIn-bOut>=0?'+':''}${fmtYen(bIn-bOut)}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('bank-grid').innerHTML = bankHTML;
+
+  const monthMap = {};
+  transactions.forEach(t => {
+    const m = (t.date||'').slice(0,7); if(!m) return;
+    if(!monthMap[m]) monthMap[m] = {in:0, out:0};
+    monthMap[m].in += Number(t.income)||0;
+    monthMap[m].out += Number(t.expense)||0;
+  });
+  const months = Object.keys(monthMap).sort().slice(-8);
+  const maxVal = Math.max(...months.map(m => Math.max(monthMap[m].in, monthMap[m].out)), 1);
+
+  document.getElementById('chart-area').innerHTML = months.length === 0
+    ? '<div class="empty-state">データがありません</div>'
+    : months.map(m => {
+        const {in: inc, out: exp} = monthMap[m];
+        return `<div class="chart-row">
+          <span class="chart-label">${m.slice(5)}月</span>
+          <div class="chart-col">
+            <div class="chart-track"><div class="chart-fill-in" style="width:${Math.round(inc/maxVal*100)}%"></div></div>
+            <div class="chart-track"><div class="chart-fill-out" style="width:${Math.round(exp/maxVal*100)}%"></div></div>
+          </div>
+          <div class="chart-vals">
+            <div class="chart-val-in">${fmtYen(inc)}</div>
+            <div class="chart-val-out">${fmtYen(exp)}</div>
+          </div>
+        </div>`;
+      }).join('');
+
+  document.getElementById('uncollected-count').textContent = uncollected.length + '件';
+  document.getElementById('uncollected-count').className = 'badge ' + (uncollected.length > 0 ? 'badge-ng' : 'badge-ok');
+  document.getElementById('alert-list').innerHTML = uncollected.length === 0
+    ? '<div class="empty-state">未回収・未払いの案件はありません</div>'
+    : uncollected.map(t => `
+      <div class="alert-item">
+        <div>
+          <span style="font-weight:500">${t.company||'—'}</span>
+          <span style="color:var(--text3);margin-left:8px;font-size:12px">${t.date||''}</span>
+          ${t.bank ? `<span class="badge badge-blue" style="margin-left:6px">${t.bank}</span>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-family:var(--mono);font-size:13px;color:var(--accent)">${fmtYen(t.income||t.expense)}</span>
+          <span class="badge ${t.status==='未回収'?'badge-ng':'badge-wait'}">${t.status}</span>
+        </div>
+      </div>`).join('');
+}
+
+function renderList() {
+  const company = (document.getElementById('f-search-company')||{}).value || '';
+  const dateFrom = (document.getElementById('f-date-from')||{}).value || '';
+  const dateTo = (document.getElementById('f-date-to')||{}).value || '';
+  const filterStatus = (document.getElementById('f-filter-status')||{}).value || '';
+  const filterType = (document.getElementById('f-filter-type')||{}).value || '';
+
+  let filtered = [...transactions].filter(t => {
+    if (company && !(t.company||'').toLowerCase().includes(company.toLowerCase())) return false;
+    if (dateFrom && (t.date||'') < dateFrom) return false;
+    if (dateTo && (t.date||'') > dateTo) return false;
+    if (filterStatus && t.status !== filterStatus) return false;
+    if (filterType && t.type !== filterType) return false;
+    return true;
+  });
+
+  // 新しい取引が下（日付昇順）
+  filtered.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+
+  document.getElementById('total-count').textContent = filtered.length + '件' + (filtered.length < transactions.length ? ` / 全${transactions.length}件` : '');
+  document.getElementById('transaction-list').innerHTML = filtered.length === 0
+    ? `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text3)">${transactions.length === 0 ? '取引データがありません' : '該当する取引はありません'}</td></tr>`
+    : filtered.map(t => {
+        const idx = transactions.indexOf(t);
+        const sc = {'回収済み':'badge-ok','支払済み':'badge-ok','未回収':'badge-ng','未払い':'badge-wait'}[t.status]||'badge-wait';
+        const hasFiles = t.files && t.files.length > 0;
+        const fileIcon = hasFiles
+          ? t.files.map((f,fi) => `<button class="file-icon-btn" title="${f.name}" onclick="openFileViewer(${idx},${fi})">📎</button>`).join('')
+          : '<span style="color:var(--text3);font-size:12px">—</span>';
+        return `<tr>
+          <td style="font-family:var(--mono);font-size:12px;color:var(--text2);white-space:nowrap">${t.date||'—'}</td>
+          <td style="font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.company||'—'}</td>
+          <td class="${t.expense?'amount-out':'amount-none'}">${t.expense?fmtYen(t.expense):'—'}</td>
+          <td class="${t.income?'amount-in':'amount-none'}">${t.income?fmtYen(t.income):'—'}</td>
+          <td>${t.bank?`<span class="badge badge-blue">${t.bank}</span>`:'<span style="color:var(--text3);font-size:12px">—</span>'}</td>
+          <td><span class="badge ${sc}">${t.status||'—'}</span></td>
+          <td style="font-size:12px;color:var(--text3)">${t.type||'—'}</td>
+          <td style="font-size:12px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.note||'—'}</td>
+          <td style="white-space:nowrap">${fileIcon}</td>
+          <td style="white-space:nowrap"><button class="link-btn" style="color:var(--accent);margin-right:8px" onclick="openEditModal(${idx})">修正</button><button class="link-btn" style="color:var(--danger)" onclick="deleteEntry(${idx})">削除</button></td>
+        </tr>`;
+      }).join('');
+}
+
+function clearFilters() {
+  ['f-search-company','f-date-from','f-date-to'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  ['f-filter-status','f-filter-type'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  renderList();
+}
+
+async function deleteEntry(idx) {
+  if (!confirm('削除しますか？')) return;
+  const entry = transactions[idx];
+  transactions.splice(idx, 1);
+  localStorage.setItem('sail_txns_v2', JSON.stringify(transactions));
+  renderList(); renderDashboard(); showToast('削除しました');
+  if (entry && entry.id) await save(entry, 'delete');
+}
+
+function clearForm() {
+  ['f-date','f-company','f-expense','f-income','f-note'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('f-type').value='受領請求書';
+  document.getElementById('f-status').value='回収済み';
+  document.getElementById('f-bank').value='';
+  document.querySelectorAll('.form-input').forEach(el => el.classList.remove('autofilled'));
+  document.getElementById('autofill-banner').classList.remove('show');
+  document.getElementById('error-detail').classList.remove('show');
+  clearPdf();
+  pendingFiles = [];
+  renderPendingFiles();
+}
+
+function clearPdf() {
+  document.getElementById('pdf-preview').classList.remove('show');
+  document.getElementById('file-input').value='';
+}
+
+async function saveEntry() {
+  const company = document.getElementById('f-company').value.trim();
+  if (!company) { showToast('取引先を入力してください'); return; }
+  showToast('保存中…');
+  // Upload files to Drive first
+  const uploadedFiles = [];
+  for (const f of pendingFiles) {
+    const uploaded = await uploadFileToGas(f);
+    uploadedFiles.push(uploaded);
+  }
+  const entry = {
+    date: document.getElementById('f-date').value,
+    company,
+    expense: document.getElementById('f-expense').value.replace(/[^\d]/g,'') || '',
+    income: document.getElementById('f-income').value.replace(/[^\d]/g,'') || '',
+    bank: document.getElementById('f-bank').value,
+    type: document.getElementById('f-type').value,
+    status: document.getElementById('f-status').value,
+    note: document.getElementById('f-note').value,
+    files: uploadedFiles,
+  };
+  const result = await save(entry, 'save');
+  if (result && result.id) entry.id = result.id;
+  transactions.push(entry);
+  localStorage.setItem('sail_txns_v2', JSON.stringify(transactions));
+  showToast('登録しました'); clearForm(); showScreen('list');
+  renderDashboard(); renderList();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function exportExcel() {
+  if (transactions.length === 0) { showToast('データがありません'); return; }
+  const rows = [['日付','取引先','出金額','入金額','口座','ステータス','種別','備考']];
+  [...transactions].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(t => {
+    rows.push([t.date||'', t.company||'', t.expense?Number(t.expense):'', t.income?Number(t.income):'', t.bank||'', t.status||'', t.type||'', t.note||'']);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:12},{wch:28},{wch:14},{wch:14},{wch:14},{wch:10},{wch:12},{wch:24}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '取引一覧');
+  XLSX.writeFile(wb, `セイル収支_第8期_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('Excelを出力しました');
+}
+
+async function analyzePdf(file) {
+  if (!apiKey) {
+    showToast('APIキーが未設定です。左下の設定から入力してください。');
+    openApiModal();
+    return;
+  }
+  const banner = document.getElementById('autofill-banner');
+  const indicator = document.getElementById('analyzing-indicator');
+  const errBox = document.getElementById('error-detail');
+  banner.classList.remove('show');
+  errBox.classList.remove('show');
+  indicator.classList.add('show');
+
+  try {
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('読み込み失敗'));
+      r.readAsDataURL(file);
+    });
+
+    const isImage = file.type.startsWith('image/');
+    const mediaType = isImage ? file.type : 'application/pdf';
+    const contentType = isImage ? 'image' : 'document';
+
+    const systemPrompt = `あなたは請求書・領収書のデータ抽出専門アシスタントです。
+日本語の請求書・領収書から情報を正確に抽出します。
+必ず有効なJSONのみを返してください。説明文・前置き・コードブロックは一切不要です。`;
+
+    const userPrompt = `この書類（請求書または領収書）から以下の情報を抽出してください。
+
+抽出ルール：
+- company: 「請求先」「御中」の宛先ではなく、「請求元」「発行者」の会社名・氏名を抽出。セイル・SAIL・株式会社セイルは弊社なので除外。
+- date: 請求日・発行日・取引日（YYYY-MM-DD形式。年が不明な場合は2025または2026を推定）
+- amount: 「合計」「請求金額」「税込合計」の金額（数字のみ、カンマ・円記号は除く）
+- type: この書類が「弊社セイルに届いた請求書」→"受領請求書"、「弊社セイルが発行した請求書」→"発行請求書"
+- note: 請求内容・品目の概要（30文字以内）
+- bank: 振込先口座の銀行名（住信SBI・大阪信用銀行・その他）
+
+不明な項目は空文字 "" にしてください。
+
+返答形式（JSONのみ・他のテキスト不要）:
+{"company":"","date":"","amount":"","type":"","note":"","bank":""}`;
+
+    const contentBlock = isImage
+      ? { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } }
+      : { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } };
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{
+          role: 'user',
+          content: [contentBlock, { type: 'text', text: userPrompt }]
+        }]
+      })
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(()=>({}));
+      throw new Error(`API Error ${resp.status}: ${errData.error?.message || resp.statusText}`);
+    }
+
+    const data = await resp.json();
+    const raw = (data.content||[]).map(c => c.text||'').join('');
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('JSONが見つかりません: ' + raw.slice(0,100));
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    const setField = (id, val, mark) => {
+      if (!val && val !== 0) return;
+      const el = document.getElementById(id);
+      el.value = val;
+      if (mark) el.classList.add('autofilled');
+    };
+
+    setField('f-company', parsed.company, true);
+    setField('f-date', parsed.date, true);
+    setField('f-note', parsed.note, false);
+
+    if (parsed.amount) {
+      const num = String(parsed.amount).replace(/[^\d]/g,'');
+      if (parsed.type === '受領請求書') {
+        setField('f-expense', num, true);
+        document.getElementById('f-type').value = '受領請求書';
+        document.getElementById('f-status').value = '未払い';
+      } else {
+        setField('f-income', num, true);
+        document.getElementById('f-type').value = '発行請求書';
+        document.getElementById('f-status').value = '未回収';
+      }
+    }
+
+    if (parsed.bank) {
+      const bankMap = {'住信':'住信SBI','SBI':'住信SBI','大阪信用':'大阪信用銀行','信用銀行':'大阪信用銀行'};
+      for (const [key, val] of Object.entries(bankMap)) {
+        if (parsed.bank.includes(key)) { document.getElementById('f-bank').value = val; break; }
+      }
+    }
+
+    banner.classList.add('show');
+    showToast('自動入力しました');
+  } catch(e) {
+    console.error(e);
+    errBox.textContent = '解析エラー: ' + e.message;
+    errBox.classList.add('show');
+    showToast('解析に失敗しました');
+  } finally {
+    indicator.classList.remove('show');
+  }
+}
+
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+function handleFile(file) {
+  if (!file) return;
+  const ok = file.type === 'application/pdf' || file.type.startsWith('image/');
+  if (!ok) { showToast('PDF または画像ファイルを選択してください'); return; }
+  document.getElementById('pdf-filename').textContent = file.name;
+  document.getElementById('pdf-filesize').textContent = (file.size/1024).toFixed(0) + ' KB';
+  document.getElementById('pdf-preview').classList.add('show');
+  analyzePdf(file);
+}
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+
+
+// ── EDIT MODAL ──
+let editingIdx = null;
+let editingFiles = [];
+
+function openEditModal(idx) {
+  editingIdx = idx;
+  const t = transactions[idx];
+  document.getElementById('e-date').value = t.date || '';
+  document.getElementById('e-company').value = t.company || '';
+  document.getElementById('e-expense').value = t.expense || '';
+  document.getElementById('e-income').value = t.income || '';
+  document.getElementById('e-bank').value = t.bank || '';
+  document.getElementById('e-status').value = t.status || '回収済み';
+  document.getElementById('e-type').value = t.type || '受領請求書';
+  document.getElementById('e-note').value = t.note || '';
+  editingFiles = (t.files || []).map(f => ({...f}));
+  renderEditFiles();
+  document.getElementById('edit-modal-overlay').classList.remove('hidden');
+}
+
+function renderEditFiles() {
+  const list = document.getElementById('edit-file-list');
+  if (!list) return;
+  if (editingFiles.length === 0) { list.innerHTML = ''; return; }
+  list.innerHTML = editingFiles.map((f, i) => `
+    <div class="file-chip">
+      <span class="file-chip-icon">${fileIcon(f.type)}</span>
+      <span class="file-chip-name">${f.name}</span>
+      <span class="file-chip-size">${(f.size/1024).toFixed(0)} KB</span>
+      <div class="file-chip-actions">
+        <button class="file-chip-btn" onclick="openFileViewerDirect(editingFiles[${i}])">プレビュー</button>
+        <button class="file-chip-btn del" onclick="removeEditFile(${i})">削除</button>
+      </div>
+    </div>`).join('');
+}
+
+function removeEditFile(i) { editingFiles.splice(i, 1); renderEditFiles(); }
+
+async function saveEditEntry() {
+  if (editingIdx === null) return;
+  const company = document.getElementById('e-company').value.trim();
+  if (!company) { showToast('取引先を入力してください'); return; }
+  transactions[editingIdx] = {
+    ...transactions[editingIdx],
+    date: document.getElementById('e-date').value,
+    company,
+    expense: document.getElementById('e-expense').value.replace(/[^\d]/g,'') || '',
+    income: document.getElementById('e-income').value.replace(/[^\d]/g,'') || '',
+    bank: document.getElementById('e-bank').value,
+    type: document.getElementById('e-type').value,
+    status: document.getElementById('e-status').value,
+    note: document.getElementById('e-note').value,
+    files: editingFiles,
+  };
+  localStorage.setItem('sail_txns_v2', JSON.stringify(transactions));
+  document.getElementById('edit-modal-overlay').classList.add('hidden');
+  renderList();
+  renderDashboard();
+  showToast('更新しました');
+  const updated = transactions[editingIdx];
+  editingIdx = null;
+  if (updated && updated.id) await save(updated, 'update');
+}
+
+function closeEditModal(event) {
+  if (event.target === document.getElementById('edit-modal-overlay')) {
+    document.getElementById('edit-modal-overlay').classList.add('hidden');
+    editingIdx = null;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const editAttachInput = document.getElementById('edit-attach-input');
+  if (editAttachInput) {
+    editAttachInput.addEventListener('change', async (e) => {
+      for (const file of Array.from(e.target.files)) {
+        const data = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = () => rej(new Error('読み込み失敗'));
+          r.readAsDataURL(file);
+        });
+        editingFiles.push({ name: file.name, size: file.size, type: file.type, data });
+      }
+      editAttachInput.value = '';
+      renderEditFiles();
+    });
+  }
+});
+
+// ── FILE ATTACHMENT ──
+let pendingFiles = [];
+let viewingFile = null;
+
+function renderPendingFiles() {
+  const list = document.getElementById('attach-file-list');
+  if (!list) return;
+  if (pendingFiles.length === 0) { list.innerHTML = ''; return; }
+  list.innerHTML = pendingFiles.map((f, i) => `
+    <div class="file-chip">
+      <span class="file-chip-icon">${fileIcon(f.type)}</span>
+      <span class="file-chip-name">${f.name}</span>
+      <span class="file-chip-size">${(f.size/1024).toFixed(0)} KB</span>
+      <div class="file-chip-actions">
+        <button class="file-chip-btn" onclick="previewPendingFile(${i})">プレビュー</button>
+        <button class="file-chip-btn del" onclick="removePendingFile(${i})">削除</button>
+      </div>
+    </div>`).join('');
+}
+
+function fileIcon(type) {
+  if (!type) return '📄';
+  if (type === 'application/pdf') return '📕';
+  if (type.startsWith('image/')) return '🖼';
+  if (type.includes('spreadsheet') || type.includes('excel') || type.includes('csv')) return '📊';
+  if (type.includes('word') || type.includes('document')) return '📝';
+  return '📄';
+}
+
+function removePendingFile(i) { pendingFiles.splice(i, 1); renderPendingFiles(); }
+
+function previewPendingFile(i) { openFileViewerDirect(pendingFiles[i]); }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const attachInput = document.getElementById('file-attach-input');
+  if (attachInput) {
+    attachInput.addEventListener('change', async (e) => {
+      for (const file of Array.from(e.target.files)) {
+        const data = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = () => rej(new Error('読み込み失敗'));
+          r.readAsDataURL(file);
+        });
+        pendingFiles.push({ name: file.name, size: file.size, type: file.type, data });
+      }
+      attachInput.value = '';
+      renderPendingFiles();
+    });
+  }
+});
+
+function openFileViewer(txIdx, fileIdx) {
+  const t = transactions[txIdx];
+  if (!t || !t.files || !t.files[fileIdx]) return;
+  openFileViewerDirect(t.files[fileIdx]);
+}
+
+function openFileViewerDirect(f) {
+  viewingFile = f;
+  document.getElementById('file-viewer-name').textContent = f.name;
+  const body = document.getElementById('file-viewer-body');
+  if (f.fileId) {
+    // Google Drive hosted file
+    const previewUrl = `https://drive.google.com/file/d/${f.fileId}/preview`;
+    body.innerHTML = `<iframe src="${previewUrl}" style="width:100%;height:70vh;border:none;" allow="autoplay"></iframe>`;
+  } else if (f.data && f.type === 'application/pdf') {
+    body.innerHTML = `<iframe src="${f.data}" style="width:100%;height:70vh;border:none;"></iframe>`;
+  } else if (f.data && f.type && f.type.startsWith('image/')) {
+    body.innerHTML = `<img src="${f.data}" style="max-width:100%;max-height:70vh;object-fit:contain;display:block;">`;
+  } else {
+    body.innerHTML = `<div style="color:#ccc;padding:40px;text-align:center;font-size:14px">
+      <div style="font-size:40px;margin-bottom:16px">${fileIcon(f.type)}</div>
+      <div>${f.name}</div>
+      <div style="font-size:12px;margin-top:8px;color:#888">${f.fileId ? 'Google Driveに保存済み' : ((f.size/1024).toFixed(0) + ' KB')}</div>
+      <button class="btn btn-sm" style="margin-top:16px" onclick="downloadViewingFile()">↓ ダウンロード</button>
+    </div>`;
+  }
+  document.getElementById('file-viewer-overlay').classList.remove('hidden');
+}
+
+function closeFileViewer(event) {
+  if (event.target === document.getElementById('file-viewer-overlay')) {
+    document.getElementById('file-viewer-overlay').classList.add('hidden');
+    viewingFile = null;
+  }
+}
+
+function downloadViewingFile() {
+  if (!viewingFile) return;
+  if (viewingFile.fileId) {
+    window.open(`https://drive.google.com/uc?export=download&id=${viewingFile.fileId}`, '_blank');
+  } else if (viewingFile.data) {
+    const a = document.createElement('a');
+    a.href = viewingFile.data;
+    a.download = viewingFile.name;
+    a.click();
+  }
+}
+
+loadData();
+
+if (!apiKey) {
+  document.getElementById('api-overlay').classList.remove('hidden');
+} else {
+  document.getElementById('api-overlay').classList.add('hidden');
+}
+</script>
+</body>
+</html>
