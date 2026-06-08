@@ -806,7 +806,11 @@ async function loadData() {
     const res = await fetch(GAS_URL + '?action=list');
     const json = await res.json();
     if (json.data) {
-      transactions = json.data;
+      // dateフィールドをYYYY-MM-DDに正規化（ISO形式 "2025-06-01T15:00:00.000Z" 対応）
+      transactions = json.data.map(t => ({
+        ...t,
+        date: t.date ? t.date.slice(0, 10) : t.date
+      }));
       setSyncStatus('最終同期: ' + new Date().toLocaleTimeString('ja-JP'));
     } else {
       throw new Error(json.error || '取得失敗');
@@ -1344,6 +1348,17 @@ async function saveEditEntry() {
   if (editingIdx === null) return;
   const company = document.getElementById('e-company').value.trim();
   if (!company) { showToast('取引先を入力してください'); return; }
+  showToast('保存中…');
+  // 新規追加ファイル（fileIdなし・dataあり）のみGASにアップロード
+  const uploadedFiles = [];
+  for (const f of editingFiles) {
+    if (!f.fileId && f.data) {
+      const uploaded = await uploadFileToGas(f);
+      uploadedFiles.push(uploaded);
+    } else {
+      uploadedFiles.push(f);
+    }
+  }
   transactions[editingIdx] = {
     ...transactions[editingIdx],
     date: document.getElementById('e-date').value,
@@ -1354,7 +1369,7 @@ async function saveEditEntry() {
     type: document.getElementById('e-type').value,
     status: document.getElementById('e-status').value,
     note: document.getElementById('e-note').value,
-    files: editingFiles,
+    files: uploadedFiles,
   };
   localStorage.setItem('sail_txns_v2', JSON.stringify(transactions));
   document.getElementById('edit-modal-overlay').classList.add('hidden');
