@@ -923,6 +923,15 @@ async function loadData() {
   apiKey = localStorage.getItem('sail_apikey') || '';
   updateApiStatus();
   setSyncStatus('読み込み中…');
+  
+  // localStorageから支払先情報を読み込む
+  let localTransactions = [];
+  try {
+    localTransactions = JSON.parse(localStorage.getItem('sail_txns_v2') || '[]');
+  } catch(e) {
+    localTransactions = [];
+  }
+  
   try {
     const res = await fetch(GAS_URL + '?action=list');
     const json = await res.json();
@@ -932,13 +941,23 @@ async function loadData() {
         ...t,
         date: t.date ? t.date.slice(0, 10) : t.date
       }));
+      
+      // localStorageから支払先情報をマージ
+      transactions = transactions.map(gasEntry => {
+        const localEntry = localTransactions.find(lt => lt.id === gasEntry.id);
+        if (localEntry && localEntry.payee) {
+          return { ...gasEntry, payee: localEntry.payee };
+        }
+        return gasEntry;
+      });
+      
       setSyncStatus('最終同期: ' + new Date().toLocaleTimeString('ja-JP'));
     } else {
       throw new Error(json.error || '取得失敗');
     }
   } catch(e) {
     setSyncStatus('⚠ オフライン（ローカルデータ表示中）', true);
-    try { transactions = JSON.parse(localStorage.getItem('sail_txns_v2') || '[]'); } catch(e2) { transactions = []; }
+    transactions = localTransactions;
   }
   renderDashboard();
   renderList();
