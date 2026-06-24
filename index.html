@@ -942,11 +942,16 @@ async function loadData() {
         date: t.date ? t.date.slice(0, 10) : t.date
       }));
       
-      // localStorageから支払先情報をマージ
+      // localStorageから支払先情報をマージ（IDでマッチング）
       transactions = transactions.map(gasEntry => {
         const localEntry = localTransactions.find(lt => lt.id === gasEntry.id);
-        if (localEntry && localEntry.payee) {
-          return { ...gasEntry, payee: localEntry.payee };
+        if (localEntry) {
+          // payeeとfilesをマージ
+          return {
+            ...gasEntry,
+            payee: localEntry.payee || gasEntry.payee,
+            files: localEntry.files || gasEntry.files
+          };
         }
         return gasEntry;
       });
@@ -1314,6 +1319,23 @@ function initUnpaidMonthFilter() {
 
 function renderUnpaidList() {
   let unpaidItems = transactions.filter(t => t.status === '未払い');
+  
+  // localStorageからpayee情報を確保
+  let localTransactions = [];
+  try {
+    localTransactions = JSON.parse(localStorage.getItem('sail_txns_v2') || '[]');
+  } catch(e) {
+    localTransactions = [];
+  }
+  
+  // payee情報をlocalStorageから復元
+  unpaidItems = unpaidItems.map(t => {
+    const localEntry = localTransactions.find(lt => lt.id === t.id);
+    if (localEntry && localEntry.payee) {
+      return { ...t, payee: localEntry.payee };
+    }
+    return t;
+  });
   
   // 月別フィルター適用
   const selectedMonth = document.getElementById('unpaid-month-filter')?.value;
