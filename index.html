@@ -1380,7 +1380,6 @@ function renderUnpaidList() {
   
   const html = unpaidItems.map((t, idx) => {
     const transIdx = transactions.indexOf(t);
-    const hasPayee = t.payee && (t.payee.bank || t.payee.accountNumber || t.payee.accountHolder);
     
     return `<div style="border-bottom:1px solid var(--border);padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-start">
       <div style="flex:1">
@@ -1388,12 +1387,12 @@ function renderUnpaidList() {
         <div style="font-size:12px;color:var(--text2);margin-bottom:4px">日付: ${t.date||'—'}</div>
         <div style="font-size:13px;font-weight:500;color:var(--expense);margin-bottom:8px">${fmtYen(t.expense)}</div>
         ${t.payee && t.payee.paymentDeadline ? `<div style="font-size:11px;color:var(--text3);margin-bottom:8px">支払期限: ${t.payee.paymentDeadline}</div>` : ''}
-        ${hasPayee ? `<div style="border-top:1px solid var(--border);padding-top:8px;font-size:12px">
+        <div style="border-top:1px solid var(--border);padding-top:8px;font-size:12px">
           <div style="color:var(--text2);margin-bottom:3px"><strong>支払先情報</strong></div>
-          ${t.payee.bank || t.payee.accountNumber ? `<div style="color:var(--text2);font-size:11px;margin-bottom:2px">銀行: ${t.payee.bank||'—'} ${t.payee.branch?t.payee.branch:''}</div>` : ''}
-          ${t.payee.accountType || t.payee.accountNumber ? `<div style="color:var(--text2);font-size:11px;margin-bottom:2px">口座: ${t.payee.accountType||''}${t.payee.accountType?'　':''}${t.payee.accountNumber||'—'}</div>` : ''}
-          ${t.payee.accountHolder ? `<div style="color:var(--text2);font-size:11px">名義人: ${t.payee.accountHolder}</div>` : ''}
-        </div>` : ''}
+          ${(t.payee?.bank || t.payee?.branch) ? `<div style="color:var(--text2);font-size:11px;margin-bottom:2px">銀行: ${t.payee.bank||'—'} ${t.payee.branch?t.payee.branch:''}</div>` : ''}
+          ${(t.payee?.accountType || t.payee?.accountNumber) ? `<div style="color:var(--text2);font-size:11px;margin-bottom:2px">口座: ${t.payee.accountType||''}${t.payee.accountType?'　':''}${t.payee.accountNumber||'—'}</div>` : ''}
+          ${t.payee?.accountHolder ? `<div style="color:var(--text2);font-size:11px">名義人: ${t.payee.accountHolder}</div>` : ''}
+        </div>
       </div>
       <div style="text-align:right;white-space:nowrap;margin-left:12px">
         <button class="link-btn" style="color:var(--accent);display:block;margin-bottom:4px" onclick="openEditModal(${transIdx})">編集</button>
