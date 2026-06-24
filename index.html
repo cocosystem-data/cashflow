@@ -1328,10 +1328,25 @@ function renderUnpaidList() {
     localTransactions = [];
   }
   
-  // payee情報をlocalStorageから復元
+  // payee情報をlocalStorageから復元（IDまたは日付と会社名でマッチング）
   unpaidItems = unpaidItems.map(t => {
-    const localEntry = localTransactions.find(lt => lt.id === t.id);
-    if (localEntry && localEntry.payee) {
+    let localEntry = null;
+    
+    // IDでマッチング
+    if (t.id) {
+      localEntry = localTransactions.find(lt => lt.id === t.id);
+    }
+    
+    // IDでマッチしなかった場合は、日付と会社名でマッチング
+    if (!localEntry) {
+      localEntry = localTransactions.find(lt => 
+        lt.date === t.date && lt.company === t.company && lt.status === '未払い'
+      );
+    }
+    
+    // payee情報を復元
+    if (localEntry && localEntry.payee && 
+        (localEntry.payee.bank || localEntry.payee.accountNumber || localEntry.payee.accountHolder)) {
       return { ...t, payee: localEntry.payee };
     }
     return t;
