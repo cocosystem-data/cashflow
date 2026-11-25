@@ -966,7 +966,7 @@ async function loadData() {
       // dateフィールドをYYYY-MM-DDに正規化（ISO形式 "2025-06-01T15:00:00.000Z" 対応）
       transactions = json.data.map(t => ({
         ...t,
-        date: t.date ? t.date.slice(0, 10) : t.date
+        date: t.date ? (String(t.date).includes('T') ? new Date(new Date(t.date).getTime() + 9*3600e3).toISOString().slice(0, 10) : String(t.date).slice(0, 10)) : t.date // 日本時間に変換して日付を取り出す
       }));
       
       // localStorageから支払先情報をマージ（IDでマッチング）
